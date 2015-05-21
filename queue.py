@@ -27,13 +27,15 @@ else:
     from PyQt4.QtGui import *
 
 import zprocess.locking, labscript_utils.h5_lock, h5py
+from labscript import compile_h5
+import labscript_utils.h5_scripting
+
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
 from qtutils import *
 
 # Connection Table Code
 from connections import ConnectionTable
-from labscript import compile_h5
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 from runmanager import get_shot_globals, set_shot_globals
 
@@ -496,7 +498,11 @@ class QueueManager(object):
                     set_shot_globals(hdf5_file, shot_globals)
 
                 # Compile file
-                labscript.compile_h5(hdf5_file)
+                # compile_h5(path)
+
+                # All data written, now run all PostProcessing functions
+                SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
+                print SavedFunctions
 
                 # Run file
                 with h5py.File(path, "r+") as hdf5_file:
@@ -646,7 +652,7 @@ class QueueManager(object):
                             break
                     except Queue.Empty:
                         pass
-                        
+                              
                 if abort or restarted:
                     for devicename, tab in devices_in_use.items():
                         if tab.mode == MODE_BUFFERED:
@@ -761,7 +767,12 @@ class QueueManager(object):
                     self.set_status("Error during transtion to manual. Queue Paused.")
                     # TODO: Kind of dodgy raising an exception here...
                     raise Exception('A device failed during transition to manual')
-                                       
+                
+                # All data written, now run all PostProcessing functions
+                SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
+
+                
+                
             except Exception as e:
                 logger.exception("Error in queue manager execution. Queue paused.")
                 # clean up the h5 file
