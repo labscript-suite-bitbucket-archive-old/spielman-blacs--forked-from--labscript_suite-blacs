@@ -71,6 +71,9 @@ class CompileAndRestart(QDialog):
         self.ui.cancel.setEnabled(False)
         self.ui.restart.setEnabled(False)
         self.ui.label.setText('Recompiling connection table')
+        
+        # TODO: why are we calling runmanager here rather than using the info
+        # in the file to do it?
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
             self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
     

@@ -34,6 +34,7 @@ from qtutils import *
 # Connection Table Code
 from connections import ConnectionTable
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from runmanager import get_globalslist
 
 FILEPATH_COLUMN = 0
 
@@ -429,7 +430,7 @@ class QueueManager(object):
                 self.set_status("Idle")
                 time.sleep(1)
                 continue
-            
+                        
             devices_in_use = {}
             transition_list = {}   
             start_time = time.time()
@@ -466,7 +467,38 @@ class QueueManager(object):
                 # Enable abort button, and link in current_queue:
                 inmain(self._ui.queue_abort_button.clicked.connect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,True)
-                                
+                          
+                # Ready to run file: assume that the file has _not_ been compiled and compile it 
+                
+                # First extract script globals, and update them from the blacs
+                # mantained dictionary of globals.
+                InitialGlobals = get_globalslist(path)
+                
+                # This is bogus.  We need an attribute of this array that 
+                # fills this table
+                inmain(self._ui.Globals_tableWidget.setRowCount, 2) 
+                inmain(self._ui.Globals_tableWidget.setItem, 0, 0, QTableWidgetItem("ExpB")) 
+                inmain(self._ui.Globals_tableWidget.setItem, 0, 1, QTableWidgetItem("0.99999")) 
+                inmain(self._ui.Globals_tableWidget.setItem, 1, 0, QTableWidgetItem("Dork")) 
+                inmain(self._ui.Globals_tableWidget.setItem, 1, 1, QTableWidgetItem("1.5")) 
+
+                # Get Table glovals
+                NewGlobals = []
+                rows = inmain(self._ui.Globals_tableWidget.rowCount)                              
+                for row in range(rows):
+                    ItemName = inmain(self._ui.Globals_tableWidget.item, row, 0)  
+                    ItemValue = inmain(self._ui.Globals_tableWidget.item, row, 1)  
+                    NewGlobals += [(str(ItemName.text()), float(ItemValue.text())),]
+
+                # Attach updated globals (these are alredy known to be valid)
+                NewGlobals = dict(NewGlobals)
+                
+                InitialGlobals.update(NewGlobals)
+                print InitialGlobals
+                # Compile file
+
+
+
                 
                 with h5py.File(path,'r') as hdf5_file:
                     h5_file_devices = hdf5_file['devices/'].keys()
