@@ -28,11 +28,12 @@ import runmanager
 from qtutils.outputbox import OutputBox
 
 class CompileAndRestart(QDialog):
-    def __init__(self, blacs, globals_files,connection_table_labscript, output_path, close_notification_func=None):
+    def __init__(self, blacs, globals_files,connection_table_labscript, output_path, sequence_id_format, close_notification_func=None):
         QDialog.__init__(self,blacs['ui'])
         self.setAttribute(Qt.WA_DeleteOnClose, True) # make sure the dialog is deleted when the window is closed
         
         self.globals_files = globals_files
+        self.sequence_id_format = sequence_id_format
         self.labscript_file = connection_table_labscript
         self.output_path = output_path
         self.tempfilename = self.output_path.strip('.h5')+'.temp.h5'
@@ -74,8 +75,11 @@ class CompileAndRestart(QDialog):
         
         # TODO: why are we calling runmanager here rather than using the info
         # in the file to do it?
+                
+        
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
-            self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
+            self.globals_files, self.tempfilename, self.sequence_id_format, "", 
+            self.output_box.port, self.finished_compiling)
     
     @inmain_decorator(True)    
     def finished_compiling(self, success):
