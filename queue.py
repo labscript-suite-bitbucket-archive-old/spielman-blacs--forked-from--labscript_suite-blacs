@@ -33,8 +33,9 @@ from qtutils import *
 
 # Connection Table Code
 from connections import ConnectionTable
+from labscript import compile_h5
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from runmanager import get_globalslist
+from runmanager import get_shot_globals, set_shot_globals
 
 FILEPATH_COLUMN = 0
 
@@ -470,9 +471,8 @@ class QueueManager(object):
                           
                 # Ready to run file: assume that the file has _not_ been compiled and compile it 
                 
-                # First extract script globals, and update them from the blacs
-                # mantained dictionary of globals.
-                InitialGlobals = get_globalslist(path)
+                # Extract script globals, and update them from the blacs mantained dictionary of globals.
+                shot_globals = get_shot_globals(path)
                 
                 # This is bogus.  We need an attribute of this array that 
                 # fills this table
@@ -490,17 +490,16 @@ class QueueManager(object):
                     ItemValue = inmain(self._ui.Globals_tableWidget.item, row, 1)  
                     NewGlobals += [(str(ItemName.text()), float(ItemValue.text())),]
 
-                # Attach updated globals (these are alredy known to be valid)
-                NewGlobals = dict(NewGlobals)
-                
-                InitialGlobals.update(NewGlobals)
-                print InitialGlobals
+                shot_globals.update(NewGlobals)
+
+                with h5py.File(path, "a") as hdf5_file:
+                    set_shot_globals(hdf5_file, shot_globals)
+
                 # Compile file
+                labscript.compile_h5(hdf5_file)
 
-
-
-                
-                with h5py.File(path,'r') as hdf5_file:
+                # Run file
+                with h5py.File(path, "r+") as hdf5_file:
                     h5_file_devices = hdf5_file['devices/'].keys()
                 
                 for name in h5_file_devices: 
