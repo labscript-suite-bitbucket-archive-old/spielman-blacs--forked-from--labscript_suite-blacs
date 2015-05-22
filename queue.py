@@ -758,10 +758,10 @@ class QueueManager(object):
                     except:
                         logger.error('Post Processing function did not return a dict type')
 
-                inmain(self._ui.Globals_tableWidget.setRowCount, len(NewGlobals))
-                for i, key in enumerate(NewGlobals):
+                inmain(self._ui.Globals_tableWidget.setRowCount, len(self.DynamicGlobals))
+                for i, key in enumerate(self.DynamicGlobals):
                     inmain(self._ui.Globals_tableWidget.setItem, i, 0, QTableWidgetItem(key)) 
-                    inmain(self._ui.Globals_tableWidget.setItem, i, 1, QTableWidgetItem( str(NewGlobals[key]) ))
+                    inmain(self._ui.Globals_tableWidget.setItem, i, 1, QTableWidgetItem( str(self.DynamicGlobals[key]) ))
 
                 
                 
