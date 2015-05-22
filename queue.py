@@ -113,6 +113,9 @@ class QueueManager(object):
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
+
+        # dynamic globals
+        self.DynamicGlobals = {}
         
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
@@ -475,34 +478,12 @@ class QueueManager(object):
                 
                 # Extract script globals, and update them from the blacs mantained dictionary of globals.
                 shot_globals = get_shot_globals(path)
-                
-                # This is bogus.  We need an attribute of this array that 
-                # fills this table
-                inmain(self._ui.Globals_tableWidget.setRowCount, 2) 
-                inmain(self._ui.Globals_tableWidget.setItem, 0, 0, QTableWidgetItem("ExpB")) 
-                inmain(self._ui.Globals_tableWidget.setItem, 0, 1, QTableWidgetItem("0.99999")) 
-                inmain(self._ui.Globals_tableWidget.setItem, 1, 0, QTableWidgetItem("Dork")) 
-                inmain(self._ui.Globals_tableWidget.setItem, 1, 1, QTableWidgetItem("1.5")) 
-
-                # Get Table glovals
-                NewGlobals = []
-                rows = inmain(self._ui.Globals_tableWidget.rowCount)                              
-                for row in range(rows):
-                    ItemName = inmain(self._ui.Globals_tableWidget.item, row, 0)  
-                    ItemValue = inmain(self._ui.Globals_tableWidget.item, row, 1)  
-                    NewGlobals += [(str(ItemName.text()), float(ItemValue.text())),]
-
-                shot_globals.update(NewGlobals)
-
+                shot_globals.update(self.DynamicGlobals)
                 with h5py.File(path, "a") as hdf5_file:
                     set_shot_globals(hdf5_file, shot_globals)
 
                 # Compile file
-                # compile_h5(path)
-
-                # All data written, now run all PostProcessing functions
-                SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
-                print SavedFunctions
+                compile_h5(path)
 
                 # Run file
                 with h5py.File(path, "r+") as hdf5_file:
@@ -770,6 +751,17 @@ class QueueManager(object):
                 
                 # All data written, now run all PostProcessing functions
                 SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
+                for SavedFunction in SavedFunctions:
+                    result = SavedFunction(**shot_globals)
+                    try:
+                        self.DynamicGlobals.update(result)
+                    except:
+                        logger.error('Post Processing function did not return a dict type')
+
+                inmain(self._ui.Globals_tableWidget.setRowCount, len(NewGlobals))
+                for i, key in enumerate(NewGlobals):
+                    inmain(self._ui.Globals_tableWidget.setItem, i, 0, QTableWidgetItem(key)) 
+                    inmain(self._ui.Globals_tableWidget.setItem, i, 1, QTableWidgetItem( str(NewGlobals[key]) ))
 
                 
                 
