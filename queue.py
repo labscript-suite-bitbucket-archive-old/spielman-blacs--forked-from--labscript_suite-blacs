@@ -29,6 +29,7 @@ else:
 import zprocess.locking, labscript_utils.h5_lock, h5py
 from labscript import compile_h5
 import labscript_utils.h5_scripting
+import labscript_utils.timing_utils
 
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
@@ -113,6 +114,9 @@ class QueueManager(object):
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
+
+        # timer
+        self._timer = labscript_utils.timing_utils.timer()
 
         # dynamic globals
         self.DynamicGlobals = {}
@@ -487,6 +491,7 @@ class QueueManager(object):
 
                 # Run file
                 with h5py.File(path, "r+") as hdf5_file:
+                    min_time = hdf5_file.attrs['min_time']
                     h5_file_devices = hdf5_file['devices/'].keys()
                 
                 for name in h5_file_devices: 
@@ -602,7 +607,19 @@ class QueueManager(object):
                 # A Queue for event-based notification of when the experiment has finished.
                 experiment_finished_queue = Queue.Queue()               
                 logger.debug('About to start the master pseudoclock')
+                
+                
+                # Do not start until delay time specificed by last sequence has expired
+                self._timer.wait()
+                
+                # Start the timer to block until the next run starts
+                self._timer.start(
+                    min_time,
+                    countdown_queue=self.BLACS._countdown_queue,
+                    countdown_mode='precent_done')                                
+                
                 run_time = time.localtime()
+                
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
                 self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
                 
