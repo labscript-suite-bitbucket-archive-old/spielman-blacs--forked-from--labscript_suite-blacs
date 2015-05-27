@@ -14,7 +14,7 @@
    <string>blacs - the labscript suite</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+   <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
     <normaloff>:/qtutils/custom/blacs.png</normaloff>:/qtutils/custom/blacs.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -219,6 +219,15 @@ V</string>
               <widget class="QProgressBar" name="TimeNext_progressBar">
                <property name="value">
                 <number>0</number>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+               <property name="textVisible">
+                <bool>true</bool>
+               </property>
+               <property name="invertedAppearance">
+                <bool>false</bool>
                </property>
               </widget>
              </item>
@@ -618,7 +627,7 @@ V</string>
   <tabstop>queue_push_to_bottom</tabstop>
  </tabstops>
  <resources>
-  <include location="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc"/>
+  <include location="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>
