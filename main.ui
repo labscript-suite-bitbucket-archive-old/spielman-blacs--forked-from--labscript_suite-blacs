@@ -483,7 +483,7 @@ V</string>
       </widget>
       <widget class="QGroupBox" name="groupBox_2">
        <property name="title">
-        <string>GroupBox</string>
+        <string>Devices</string>
        </property>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
@@ -532,14 +532,6 @@ V</string>
          </widget>
         </item>
        </layout>
-       <zorder></zorder>
-       <zorder></zorder>
-       <zorder></zorder>
-       <zorder></zorder>
-       <zorder>widget_10</zorder>
-       <zorder>widget_11</zorder>
-       <zorder>widget_12</zorder>
-       <zorder>widget_13</zorder>
       </widget>
      </widget>
     </item>
