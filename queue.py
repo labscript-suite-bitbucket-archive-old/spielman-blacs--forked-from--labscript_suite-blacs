@@ -119,6 +119,7 @@ class QueueManager(object):
         self._timer = labscript_utils.timing_utils.timer()
 
         # dynamic globals
+        self._ui.ClearDynamic_pushButton.clicked.connect(self._delete_dynamic_globals)
         self.DynamicGlobals = {}
         
         self.manager = threading.Thread(target = self.manage)
@@ -199,6 +200,10 @@ class QueueManager(object):
         while index_list:
             self._model.takeRow(index_list[0].row())
             index_list = self._ui.treeview.selectedIndexes()
+
+    def _delete_dynamic_globals(self):
+        self.DynamicGlobals = {}        
+        self._ui.Globals_tableWidget.setRowCount(0)
     
     def _move_up(self):        
         # Get the selection model from the treeview
