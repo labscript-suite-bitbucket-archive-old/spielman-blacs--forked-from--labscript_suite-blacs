@@ -202,12 +202,6 @@ class QueueManager(object):
             filename = self._model.item(index).text()
             self._model.takeRow(index)
             index_list = self._ui.treeview.selectedIndexes()
-            
-            try:
-                os.unlink(filename)
-            except:
-                self._logger.error('Unable to delete file %s'%filename)
-                
 
     def _delete_dynamic_globals(self):
         self.DynamicGlobals = {}        
