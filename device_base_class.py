@@ -700,16 +700,16 @@ if __name__ == '__main__':
     handler = logging.handlers.RotatingFileHandler('BLACS.log', maxBytes=1024**2, backupCount=0)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     logger.addHandler(handler)
     if sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
-        terminalhandler.setLevel(logging.DEBUG)
+        terminalhandler.setLevel(logging.INFO)
         logger.addHandler(terminalhandler)
     else:
         sys.stdout = sys.stderr = open(os.devnull)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     #labscript_utils.excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
             
