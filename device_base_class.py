@@ -705,11 +705,11 @@ if __name__ == '__main__':
     if sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
-        terminalhandler.setLevel(logging.INFO)
+        terminalhandler.setLevel(logging.DEBIG)
         logger.addHandler(terminalhandler)
     else:
         sys.stdout = sys.stderr = open(os.devnull)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     #labscript_utils.excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
             
