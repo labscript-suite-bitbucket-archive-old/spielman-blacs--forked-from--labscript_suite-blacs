@@ -109,9 +109,15 @@
                  <height>16777215</height>
                 </size>
                </property>
+               <property name="toolTip">
+                <string>push to top</string>
+               </property>
                <property name="text">
-                <string>^
-^</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                 <normaloff>:/qtutils/fugue/arrow-stop-090.png</normaloff>:/qtutils/fugue/arrow-stop-090.png</iconset>
                </property>
               </widget>
              </item>
@@ -135,8 +141,38 @@
                  <height>16777215</height>
                 </size>
                </property>
+               <property name="toolTip">
+                <string>push up</string>
+               </property>
                <property name="text">
-                <string>^</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                 <normaloff>:/qtutils/fugue/arrow-090.png</normaloff>:/qtutils/fugue/arrow-090.png</iconset>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="queue_delete_button">
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>20</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>delete selected</string>
+               </property>
+               <property name="icon">
+                <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                 <normaloff>:/qtutils/fugue/cross-button.png</normaloff>:/qtutils/fugue/cross-button.png</iconset>
                </property>
               </widget>
              </item>
@@ -160,8 +196,15 @@
                  <height>16777215</height>
                 </size>
                </property>
+               <property name="toolTip">
+                <string>push down</string>
+               </property>
                <property name="text">
-                <string>v</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                 <normaloff>:/qtutils/fugue/arrow-270.png</normaloff>:/qtutils/fugue/arrow-270.png</iconset>
                </property>
               </widget>
              </item>
@@ -185,9 +228,15 @@
                  <height>16777215</height>
                 </size>
                </property>
+               <property name="toolTip">
+                <string>push to bottom</string>
+               </property>
                <property name="text">
-                <string>V
-V</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                 <normaloff>:/qtutils/fugue/arrow-stop-270.png</normaloff>:/qtutils/fugue/arrow-stop-270.png</iconset>
                </property>
               </widget>
              </item>
@@ -209,6 +258,25 @@ V</string>
            <item>
             <layout class="QVBoxLayout" name="verticalLayout_5">
              <item>
+              <widget class="QLabel" name="queue_status">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="QLabel" name="label">
                <property name="text">
                 <string>Shot progress</string>
@@ -228,25 +296,6 @@ V</string>
                </property>
                <property name="invertedAppearance">
                 <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="queue_status">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="alignment">
-                <set>Qt::AlignCenter</set>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
                </property>
               </widget>
              </item>
@@ -282,6 +331,9 @@ V</string>
                <property name="animated">
                 <bool>true</bool>
                </property>
+               <attribute name="headerVisible">
+                <bool>true</bool>
+               </attribute>
               </widget>
              </item>
              <item>
@@ -300,15 +352,32 @@ V</string>
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="queue_pause_button">
+                <widget class="QPushButton" name="queue_repeat_button">
                  <property name="text">
-                  <string>Pause Queue</string>
+                  <string>Repeat</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                   <normaloff>:/qtutils/fugue/arrow-repeat.png</normaloff>:/qtutils/fugue/arrow-repeat.png</iconset>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
                  </property>
-                 <property name="checked">
-                  <bool>false</bool>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="repeats_spinBox">
+                 <property name="toolTip">
+                  <string>Number of times to repeat</string>
+                 </property>
+                 <property name="prefix">
+                  <string/>
+                 </property>
+                 <property name="maximum">
+                  <number>100000</number>
+                 </property>
+                 <property name="value">
+                  <number>2</number>
                  </property>
                 </widget>
                </item>
@@ -326,12 +395,19 @@ V</string>
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="queue_repeat_button">
+                <widget class="QPushButton" name="queue_pause_button">
                  <property name="text">
-                  <string>Repeat</string>
+                  <string>Pause Queue</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="../../Users/rubidium/AppData/Local/Continuum/Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+                   <normaloff>:/qtutils/fugue/control-pause.png</normaloff>:/qtutils/fugue/control-pause.png</iconset>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -370,13 +446,6 @@ V</string>
                   </size>
                  </property>
                 </spacer>
-               </item>
-               <item>
-                <widget class="QPushButton" name="queue_delete_button">
-                 <property name="text">
-                  <string>Delete Selected</string>
-                 </property>
-                </widget>
                </item>
                <item>
                 <spacer name="horizontalSpacer_4">
@@ -618,9 +687,6 @@ V</string>
   </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>queue_pause_button</tabstop>
-  <tabstop>queue_repeat_button</tabstop>
-  <tabstop>queue_delete_button</tabstop>
   <tabstop>queue_push_to_top</tabstop>
   <tabstop>queue_push_up</tabstop>
   <tabstop>queue_push_down</tabstop>
