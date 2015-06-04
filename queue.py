@@ -106,7 +106,7 @@ class QueueManager(object):
         self._ui.treeview.add_to_queue = self.process_request
         self._ui.treeview.delete_selection = self._delete_selected_items
         
-        # set up buttons
+        # set up queue control buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
@@ -114,9 +114,12 @@ class QueueManager(object):
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
-
+        self._repeats = int(self._ui.repeats_spinBox.value())
+        self._ui.repeats_spinBox.valueChanged.connect(self._repeats_changed)        
+        
         # timer
         self._timer = labscript_utils.timing_utils.timer()
+
 
         # dynamic globals
         self._ui.ClearDynamic_pushButton.clicked.connect(self._delete_dynamic_globals)
@@ -128,7 +131,9 @@ class QueueManager(object):
     
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
+    
         
+    
     def get_save_data(self):
         # get list of files in the queue
         file_list = []
@@ -288,6 +293,12 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
+    def _repeats_changed(self, value):
+        """
+        Sets the number of repeats allowed in repeat mode
+        """
+        self._repeats = int(value)
+
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
@@ -315,9 +326,6 @@ class QueueManager(object):
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
                 new_h5_filepath = self.new_rep_name(h5_filepath)
-                # Keep counting up until we get a filename that isn't in the filesystem:
-                while os.path.exists(new_h5_filepath):
-                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -348,8 +356,10 @@ class QueueManager(object):
     def new_rep_name(self,h5_filepath):
         basename = os.path.basename(h5_filepath).split('.h5')[0]
         if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
+            reps = int(basename.split('_rep')[1]) + 1
+            if self._repeats > 1:
+                reps = reps%self._repeats
+            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% reps
         return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
         
     def clean_h5_file(self,h5file,new_h5_file):

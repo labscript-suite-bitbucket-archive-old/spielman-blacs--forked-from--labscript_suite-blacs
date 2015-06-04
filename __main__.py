@@ -520,7 +520,6 @@ class BLACS(object):
             self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
             tab.update_from_settings(self.settings_dict[device_name])
 
-
     def on_load_front_panel(self,*args,**kwargs):
         # get the file:
         # create file chooser dialog
