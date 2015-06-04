@@ -15,11 +15,12 @@ import sys,os
 import logging, logging.handlers
 
 def setup_logging():
+    # Really this should get the logging level from the configuration file
     logger = logging.getLogger('BLACS')
     handler = logging.handlers.RotatingFileHandler(os.path.join(os.path.dirname(os.path.realpath(__file__)),'BLACS.log'), maxBytes=1024*1024*50)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     logger.addHandler(handler)
     if sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
@@ -30,5 +31,5 @@ def setup_logging():
         # Prevent bug on windows where writing to stdout without a command
         # window causes a crash:
         sys.stdout = sys.stderr = open(os.devnull,'w')
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     return logger
