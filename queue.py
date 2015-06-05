@@ -30,6 +30,7 @@ import zprocess.locking, labscript_utils.h5_lock, h5py
 from labscript import compile_h5
 import labscript_utils.h5_scripting
 import labscript_utils.timing_utils
+import labscript_utils.file_utils
 
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
@@ -325,7 +326,7 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = self.new_rep_name(h5_filepath)
+                new_h5_filepath = labscript_utils.file_utils.new_rep_name(h5_filepath, repeats= self._repeats)
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -351,17 +352,7 @@ class QueueManager(object):
                        "Please verify your experiment script matches the current experiment configuration, and try again\n"
                        "The error was %s\n"%error)
             return message
-            
-    
-    def new_rep_name(self,h5_filepath):
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1]) + 1
-            if self._repeats > 1:
-                reps = reps%self._repeats
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% reps
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
-        
+                    
     def clean_h5_file(self,h5file,new_h5_file):
         try:
             with h5py.File(h5file,'r') as old_file:
