@@ -312,11 +312,14 @@ class QueueManager(object):
     
     def process_request(self,h5_filepath):
         # check connection table
+        
         try:
             new_conn = ConnectionTable(h5_filepath)
         except:
             return "H5 file not accessible to Control PC\n"
+
         result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
+
         if result:
             # Has this run file been run already?
             with h5py.File(h5_filepath) as h5_file:
@@ -326,7 +329,8 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = labscript_utils.file_utils.new_rep_name(h5_filepath, repeats= self._repeats)
+                new_h5_filepath = labscript_utils.file_utils.new_rep_name(h5_filepath, repeats=self._repeats)
+                
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -832,10 +836,10 @@ class QueueManager(object):
                 # Resubmit job to the bottom of the queue:
                 try:
                     message = self.process_request(path)
+                    logger.info(message)      
                 except:
                     # TODO: make this error popup for the user
-                    logger.error('Failed to copy h5_file (%s) for repeat run'%s)
-                logger.info(message)      
+                    logger.error('Failed to copy h5_file (%s) for repeat run'%path)
 
             self.set_status("Idle")
         logger.info('Stopping')
