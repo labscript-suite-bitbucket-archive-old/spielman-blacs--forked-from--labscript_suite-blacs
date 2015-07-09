@@ -25,7 +25,9 @@ else:
 
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
+from labscript_utils.labconfig import LabConfig
 from qtutils import *
+
 
 FILEPATH_COLUMN = 0
 name = "Connection Table"
@@ -115,7 +117,24 @@ class Menu(object):
         # Remove unicode encoding so that zprocess.locking doesn't crash
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
-        CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'),close_notification_func=self.close_notification_func)
+
+        # What the output generate_sequence_id should look like
+        try:
+            sequence_id_format = self.BLACS['exp_config'].get('runmanager', 'sequence_id_format')
+            # Better not contain slashes:
+            sequence_id_format =  sequence_id_format.replace(os.path.sep,"")
+        except (LabConfig.NoOptionError, LabConfig.NoSectionError):
+            sequence_id_format = '%Y%m%dT%H%M%S'
+
+
+
+        CompileAndRestart(
+            self.BLACS,
+            globals_files,
+            self.BLACS['exp_config'].get('paths','connection_table_py'),
+            self.BLACS['exp_config'].get('paths','connection_table_h5'),
+            sequence_id_format,
+            close_notification_func=self.close_notification_func)
      
     
 class Notification(object):
