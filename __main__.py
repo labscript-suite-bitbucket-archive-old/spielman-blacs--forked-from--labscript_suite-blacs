@@ -20,6 +20,7 @@ import subprocess
 import sys
 import threading
 import time
+import Queue
 
 import signal
 # Quit on ctrl-c
@@ -71,13 +72,13 @@ import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
 ###
 from zprocess import zmq_get, ZMQServer
-from setup_logging import setup_logging
+from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
 # Custom Excepthook
 import labscript_utils.excepthook
 # Setup logging
-logger = setup_logging()
+logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
 # now log versions (must be after setup logging)
@@ -182,6 +183,25 @@ def set_win_appusermodel(window_id):
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
+class QueueToSignal(QObject):
+    """
+    A QObject (to be run in a QThread) which sits waiting for data to come through a Queue.Queue().
+    It blocks until data is available, and once it has got something from the queue, it sends
+    it to the "MainThread" by emitting a Qt Signal
+    """
+
+    mysignal = pyqtSignal(int)
+
+    def __init__(self,queue,*args,**kwargs):
+        QObject.__init__(self,*args,**kwargs)
+        self.queue = queue
+
+    @pyqtSlot()
+    def run(self):
+        while True:
+            data = int(self.queue.get())
+            self.mysignal.emit(data)
+
 
 class BLACSWindow(QMainWindow):
     newWindow = Signal(int)
@@ -253,7 +273,7 @@ class BLACS(object):
         self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
-
+        
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
@@ -261,6 +281,17 @@ class BLACS(object):
         self.tablist = {}
         self.panes = {}
         self.settings_dict = {}
+
+        # Setup progressbar monitoring status queue
+        self.ui.TimeNext_progressBar.setRange(0,100)
+
+        self._countdown_queue = Queue.Queue()
+        Queue_Receiver = QueueToSignal( self._countdown_queue)
+        Queue_Receiver.mysignal.connect(self.ui.TimeNext_progressBar.setValue)
+        thread = QThread()
+        Queue_Receiver.moveToThread(thread)
+        thread.started.connect(Queue_Receiver.run)
+        thread.start()
 
         # Find which devices are connected to BLACS, and what their labscript class names are:
         logger.info('finding connected devices in connection table')
@@ -493,7 +524,6 @@ class BLACS(object):
             self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
             self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
             tab.update_from_settings(self.settings_dict[device_name])
-
 
     def on_load_front_panel(self,*args,**kwargs):
         # get the file:
