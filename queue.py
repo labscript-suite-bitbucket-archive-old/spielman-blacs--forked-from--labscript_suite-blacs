@@ -397,7 +397,22 @@ class QueueManager(object):
             
     @inmain_decorator(wait_for_return=True)
     def get_next_file(self):
-        return str(self._model.takeRow(0)[0].text())
+        path = str(self._model.takeRow(0)[0].text())
+    
+        #######################################################################
+        #  Repeat Experiment
+        #######################################################################
+        if self.manager_repeat:
+            # Resubmit job to the bottom of the queue if we are on the last file
+            if self._model.rowCount() == 0:
+                try:
+                    message = self.process_request(path)
+                    logger.info(message)      
+                except:
+                    # TODO: make this error popup for the user
+                    logger.error('Failed to copy h5_file (%s) for repeat run'%path)
+
+        return path
     
     @inmain_decorator(wait_for_return=True)    
     def transition_device_to_buffered(self, name, transition_list, h5file, restart_receiver):
@@ -832,18 +847,6 @@ class QueueManager(object):
             # Submit to the analysis server
             self.BLACS.analysis_submission.get_queue().put(['file', path])
              
-            ##########################################################################################################################################
-            #                                                        Repeat Experiment?                                                              #
-            ########################################################################################################################################## 
-            if self.manager_repeat:
-                # Resubmit job to the bottom of the queue:
-                try:
-                    message = self.process_request(path)
-                    logger.info(message)      
-                except:
-                    # TODO: make this error popup for the user
-                    logger.error('Failed to copy h5_file (%s) for repeat run'%path)
-
             self.set_status("Idle")
         logger.info('Stopping')
 
