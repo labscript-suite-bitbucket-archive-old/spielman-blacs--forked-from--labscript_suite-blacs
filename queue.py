@@ -98,7 +98,7 @@ class QueueManager(object):
         self.BLACS = BLACS
         self._manager_running = True
         self._manager_paused = False
-        self._manager_repeat = False
+        self.manager_repeat = 0
         self.master_pseudoclock = self.BLACS.connection_table.master_pseudoclock
         
         self._logger = logging.getLogger('BLACS.QueueManager')   
@@ -112,7 +112,7 @@ class QueueManager(object):
         
         # set up queue control buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
-        self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
+        self._ui.queue_repeat_comboBox.activated.connect(self._activated_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
@@ -188,8 +188,8 @@ class QueueManager(object):
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
-    def _toggle_repeat(self,checked):    
-        self.manager_repeat = checked
+    def _activated_repeat(self, value):    
+        self.manager_repeat = int(value)
         
     @property
     @inmain_decorator(True)
@@ -198,17 +198,16 @@ class QueueManager(object):
     
     @manager_repeat.setter
     @inmain_decorator(True)
-    def manager_repeat(self,value):
-        value = bool(value)
+    def manager_repeat(self, value):
+        value = int(value)
         self._manager_repeat = value
-        if value != self._ui.queue_repeat_button.isChecked():
-            self._ui.queue_repeat_button.setChecked(value)
+        if value != self._ui.queue_repeat_comboBox.currentIndex():
+            self._ui.queue_repeat_comboBox.setCurrentIndex(value)
         
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
             index =  index_list[0].row()
-            filename = self._model.item(index).text()
             self._model.takeRow(index)
             index_list = self._ui.treeview.selectedIndexes()
 
@@ -842,7 +841,7 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
-            if self.manager_repeat and self.get_num_files() == 0:
+            if (self.manager_repeat == 1) or (self.manager_repeat == 2 and self.get_num_files() == 0):
                 # Resubmit job to the bottom of the queue:
                 try:
                     message = self.process_request(path)
