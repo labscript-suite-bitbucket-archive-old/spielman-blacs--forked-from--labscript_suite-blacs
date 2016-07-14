@@ -789,12 +789,19 @@ class QueueManager(object):
                 
                 # All data written, now run all PostProcessing functions
                 SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
-                for SavedFunction in SavedFunctions:
-                    result = SavedFunction(**shot_globals)
-                    try:
-                        self.DynamicGlobals.update(result)
-                    except:
-                        logger.error('Post Processing function did not return a dict type')
+                
+                with h5py.File(path, 'r+') as hdf5_file:
+                    for SavedFunction in SavedFunctions:
+                        try:
+                            result = SavedFunction(hdf5_file, **shot_globals)
+                        except:
+                            result = {}
+                            logger.error('Post Processing function did not execute correctly')
+                            
+                        try:
+                            self.DynamicGlobals.update(result)
+                        except:
+                            logger.error('Post Processing function did not return a dict type')
 
                 inmain(self._ui.Globals_tableWidget.setRowCount, len(self.DynamicGlobals))
                 for i, key in enumerate(self.DynamicGlobals):
