@@ -795,7 +795,7 @@ class QueueManager(object):
                 with h5py.File(path, 'r+') as hdf5_file:
                     for SavedFunction in SavedFunctions:
                         try:
-                            result = SavedFunction(hdf5_file, **shot_globals)
+                            result = SavedFunction.custom_call(hdf5_file, **shot_globals)
                         except Exception:
                             import zprocess
                             zprocess.raise_exception_in_thread(sys.exc_info())
