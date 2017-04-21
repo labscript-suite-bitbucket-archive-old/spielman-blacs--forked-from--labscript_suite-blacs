@@ -27,6 +27,11 @@ else:
     from PyQt4.QtGui import *
 
 import zprocess.locking, labscript_utils.h5_lock, h5py
+from labscript import compile_h5
+import labscript_utils.h5_scripting
+import labscript_utils.timing_utils
+import labscript_utils.file_utils
+
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
 from qtutils import *
@@ -34,15 +39,16 @@ from qtutils import *
 # Connection Table Code
 from connections import ConnectionTable
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from runmanager import get_shot_globals, set_shot_globals
 
 FILEPATH_COLUMN = 0
 
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
-        self.header().setResizeMode(QHeaderView.ResizeToContents)
-        self.header().setStretchLastSection(False)
+        self.header().setStretchLastSection(True)
         self.setAutoScroll(False)
+        self.setTextElideMode(Qt.ElideLeft)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
@@ -92,7 +98,7 @@ class QueueManager(object):
         self.BLACS = BLACS
         self._manager_running = True
         self._manager_paused = False
-        self._manager_repeat = False
+        self.manager_repeat = 0
         self.master_pseudoclock = self.BLACS.connection_table.master_pseudoclock
         
         self._logger = logging.getLogger('BLACS.QueueManager')   
@@ -104,14 +110,24 @@ class QueueManager(object):
         self._ui.treeview.add_to_queue = self.process_request
         self._ui.treeview.delete_selection = self._delete_selected_items
         
-        # set up buttons
+        # set up queue control buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
-        self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
+        self._ui.queue_repeat_comboBox.activated.connect(self._activated_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
+        self._repeats = int(self._ui.repeats_spinBox.value())
+        self._ui.repeats_spinBox.valueChanged.connect(self._repeats_changed)        
+        
+        # timer
+        self._timer = labscript_utils.timing_utils.timer()
+
+
+        # dynamic globals
+        self._ui.ClearDynamic_pushButton.clicked.connect(self._delete_dynamic_globals)
+        self.DynamicGlobals = {}
         
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
@@ -119,7 +135,9 @@ class QueueManager(object):
     
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
+    
         
+    
     def get_save_data(self):
         # get list of files in the queue
         file_list = []
@@ -170,8 +188,8 @@ class QueueManager(object):
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
-    def _toggle_repeat(self,checked):    
-        self.manager_repeat = checked
+    def _activated_repeat(self, value):    
+        self.manager_repeat = int(value)
         
     @property
     @inmain_decorator(True)
@@ -180,17 +198,22 @@ class QueueManager(object):
     
     @manager_repeat.setter
     @inmain_decorator(True)
-    def manager_repeat(self,value):
-        value = bool(value)
+    def manager_repeat(self, value):
+        value = int(value)
         self._manager_repeat = value
-        if value != self._ui.queue_repeat_button.isChecked():
-            self._ui.queue_repeat_button.setChecked(value)
+        if value != self._ui.queue_repeat_comboBox.currentIndex():
+            self._ui.queue_repeat_comboBox.setCurrentIndex(value)
         
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
-            self._model.takeRow(index_list[0].row())
+            index =  index_list[0].row()
+            self._model.takeRow(index)
             index_list = self._ui.treeview.selectedIndexes()
+
+    def _delete_dynamic_globals(self):
+        self.DynamicGlobals = {}        
+        self._ui.Globals_tableWidget.setRowCount(0)
     
     def _move_up(self):        
         # Get the selection model from the treeview
@@ -273,10 +296,18 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
+    def _repeats_changed(self, value):
+        """
+        Sets the number of repeats allowed in repeat mode
+        """
+        self._repeats = int(value)
+
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
-            self._model.appendRow(QStandardItem(file))
+            item = QStandardItem(file)
+            item.setToolTip(file)
+            self._model.appendRow(item)
     
     @inmain_decorator(True)
     def prepend(self,h5file):
@@ -285,11 +316,14 @@ class QueueManager(object):
     
     def process_request(self,h5_filepath):
         # check connection table
+        
         try:
             new_conn = ConnectionTable(h5_filepath)
         except:
             return "H5 file not accessible to Control PC\n"
+
         result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
+
         if result:
             # Has this run file been run already?
             with h5py.File(h5_filepath) as h5_file:
@@ -299,10 +333,8 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = self.new_rep_name(h5_filepath)
-                # Keep counting up until we get a filename that isn't in the filesystem:
-                while os.path.exists(new_h5_filepath):
-                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
+                new_h5_filepath = labscript_utils.file_utils.new_rep_name(h5_filepath, repeats=self._repeats)
+                
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -328,15 +360,7 @@ class QueueManager(object):
                        "Please verify your experiment script matches the current experiment configuration, and try again\n"
                        "The error was %s\n"%error)
             return message
-            
-    
-    def new_rep_name(self,h5_filepath):
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
-        
+                    
     def clean_h5_file(self,h5file,new_h5_file):
         try:
             with h5py.File(h5file,'r') as old_file:
@@ -364,6 +388,11 @@ class QueueManager(object):
             return False
 
     @inmain_decorator(wait_for_return=True)
+    def get_num_files(self):
+        return int(self._model.rowCount())
+ 
+
+    @inmain_decorator(wait_for_return=True)
     def set_status(self,text):
         # TODO: make this fancier!
         self._ui.queue_status.setText(str(text))
@@ -375,6 +404,8 @@ class QueueManager(object):
     @inmain_decorator(wait_for_return=True)
     def get_next_file(self):
         return str(self._model.takeRow(0)[0].text())
+    
+        
     
     @inmain_decorator(wait_for_return=True)    
     def transition_device_to_buffered(self, name, transition_list, h5file, restart_receiver):
@@ -432,7 +463,7 @@ class QueueManager(object):
                 self.set_status("Idle")
                 time.sleep(1)
                 continue
-            
+                        
             devices_in_use = {}
             transition_list = {}   
             start_time = time.time()
@@ -469,9 +500,21 @@ class QueueManager(object):
                 # Enable abort button, and link in current_queue:
                 inmain(self._ui.queue_abort_button.clicked.connect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,True)
-                                
+                          
+                # Ready to run file: assume that the file has _not_ been compiled and compile it 
                 
-                with h5py.File(path,'r') as hdf5_file:
+                # Extract script globals, and update them from the blacs mantained dictionary of globals.
+                shot_globals = get_shot_globals(path)
+                shot_globals.update(self.DynamicGlobals)
+                with h5py.File(path, "a") as hdf5_file:
+                    set_shot_globals(hdf5_file, shot_globals)
+
+                # Compile file
+                compile_h5(path)
+
+                # Run file
+                with h5py.File(path, "r+") as hdf5_file:
+                    min_time = hdf5_file.attrs['min_time']
                     h5_file_devices = hdf5_file['devices/'].keys()
                 
                 for name in h5_file_devices: 
@@ -587,7 +630,19 @@ class QueueManager(object):
                 # A Queue for event-based notification of when the experiment has finished.
                 experiment_finished_queue = Queue.Queue()               
                 logger.debug('About to start the master pseudoclock')
+                
+                
+                # Do not start until delay time specificed by last sequence has expired
+                self._timer.wait()
+                
+                # Start the timer to block until the next run starts
+                self._timer.start(
+                    min_time,
+                    countdown_queue=self.BLACS._countdown_queue,
+                    countdown_mode='precent_done')                                
+                
                 run_time = time.localtime()
+                
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
                 self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
                 
@@ -618,7 +673,7 @@ class QueueManager(object):
                             break
                     except Queue.Empty:
                         pass
-                        
+                              
                 if abort or restarted:
                     for devicename, tab in devices_in_use.items():
                         if tab.mode == MODE_BUFFERED:
@@ -733,7 +788,32 @@ class QueueManager(object):
                     self.set_status("Error during transtion to manual. Queue Paused.")
                     # TODO: Kind of dodgy raising an exception here...
                     raise Exception('A device failed during transition to manual')
-                                       
+                
+                # All data written, now run all PostProcessing functions
+                SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path)
+                
+                with h5py.File(path, 'r+') as hdf5_file:
+                    for SavedFunction in SavedFunctions:
+                        try:
+                            result = SavedFunction(hdf5_file, **shot_globals)
+                        except Exception:
+                            import zprocess
+                            zprocess.raise_exception_in_thread(sys.exc_info())
+                            result = {}
+                            logger.error('Post Processing function did not execute correctly')
+                            
+                        try:
+                            self.DynamicGlobals.update(result)
+                        except:
+                            logger.error('Post Processing function did not return a dict type')
+
+                inmain(self._ui.Globals_tableWidget.setRowCount, len(self.DynamicGlobals))
+                for i, key in enumerate(self.DynamicGlobals):
+                    inmain(self._ui.Globals_tableWidget.setItem, i, 0, QTableWidgetItem(key)) 
+                    inmain(self._ui.Globals_tableWidget.setItem, i, 1, QTableWidgetItem( str(self.DynamicGlobals[key]) ))
+
+                
+                
             except Exception as e:
                 logger.exception("Error in queue manager execution. Queue paused.")
                 # clean up the h5 file
@@ -772,14 +852,14 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
-            if self.manager_repeat:
+            if (self.manager_repeat == 1) or (self.manager_repeat == 2 and self.get_num_files() == 0):
                 # Resubmit job to the bottom of the queue:
                 try:
                     message = self.process_request(path)
+                    logger.info(message)      
                 except:
                     # TODO: make this error popup for the user
-                    self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
-                logger.info(message)      
+                    logger.error('Failed to copy h5_file (%s) for repeat run'%path)
 
             self.set_status("Idle")
         logger.info('Stopping')
