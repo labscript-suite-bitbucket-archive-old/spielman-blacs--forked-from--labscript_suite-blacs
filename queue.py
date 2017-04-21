@@ -796,7 +796,9 @@ class QueueManager(object):
                     for SavedFunction in SavedFunctions:
                         try:
                             result = SavedFunction(hdf5_file, **shot_globals)
-                        except:
+                        except Exception:
+                            import zprocess
+                            zprocess.raise_exception_in_thread(sys.exc_info())
                             result = {}
                             logger.error('Post Processing function did not execute correctly')
                             
