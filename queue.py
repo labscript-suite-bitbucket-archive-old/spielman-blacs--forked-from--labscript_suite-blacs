@@ -850,6 +850,17 @@ class QueueManager(object):
             self.BLACS.analysis_submission.get_queue().put(['file', path])
              
             ##########################################################################################################################################
+            #                                                        Plugin callbacks                                                                #
+            ########################################################################################################################################## 
+            for plugin in self.BLACS.plugins.values():
+                callbacks = plugin.get_callbacks()
+                if isinstance(callbacks, dict) and 'shot_complete' in callbacks:
+                    try:
+                        callbacks['shot_complete'](path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
+            ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
             if (self.manager_repeat == 1) or (self.manager_repeat == 2 and self.get_num_files() == 0):
