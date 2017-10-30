@@ -118,9 +118,7 @@ class QueueManager(object):
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
-        self._repeats = int(self._ui.repeats_spinBox.value())
-        self._ui.repeats_spinBox.valueChanged.connect(self._repeats_changed)        
-        
+
         # timer
         self._timer = labscript_utils.timing_utils.timer()
 
@@ -296,12 +294,6 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
-    def _repeats_changed(self, value):
-        """
-        Sets the number of repeats allowed in repeat mode
-        """
-        self._repeats = int(value)
-
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
@@ -333,8 +325,10 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = labscript_utils.file_utils.new_rep_name(h5_filepath, repeats=self._repeats)
-                
+                new_h5_filepath = self.new_rep_name(h5_filepath)
+                # Keep counting up until we get a filename that isn't in the filesystem:
+                while os.path.exists(new_h5_filepath):
+                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -360,7 +354,20 @@ class QueueManager(object):
                        "Please verify your experiment script matches the current experiment configuration, and try again\n"
                        "The error was %s\n"%error)
             return message
-                    
+               
+    def new_rep_name(self, h5_filepath):
+        basename, ext = os.path.splitext(h5_filepath)
+        if '_rep' in basename and ext == '.h5':
+            reps = basename.split('_rep')[-1]
+            try:
+                reps = int(reps)
+            except ValueError:
+                # not a rep
+                pass
+            else:
+                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5'% (reps + 1)
+        return basename + '_rep%05d.h5'%1
+    
     def clean_h5_file(self,h5file,new_h5_file):
         try:
             with h5py.File(h5file,'r') as old_file:
