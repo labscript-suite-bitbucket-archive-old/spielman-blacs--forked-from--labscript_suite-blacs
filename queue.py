@@ -823,6 +823,7 @@ class QueueManager(object):
                 self.manager_paused = True
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5')
+                # self.SavedFunctions = labscript_utils.h5_scripting.get_all_saved_functions(path(path, 'temp.h5'))
                 try:
                     os.remove(path)
                     os.rename('temp.h5', path)
