@@ -752,40 +752,44 @@ class QueueManager(object):
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
         
-                # A Queue for event-based notification of when the devices have transitioned to static mode:
-                # Shouldn't need to recreate the queue: self.current_queue = Queue.Queue()    
-                    
-                # TODO: unserialise this if everything is using zprocess.locking
-                # only transition one device to static at a time,
-                # since writing data to the h5 file can potentially
-                # happen at this stage:
+                                    
+                for devicename, tab in devices_in_use.items():
+                    if tab.mode == MODE_BUFFERED:
+                        tab.transition_to_manual(self.current_queue)
+
                 error_condition = False
-                
-                # This is far more complicated than it needs to be once transition_to_manual is unserialised!
-                response_list = {}
-                for device_name, tab in devices_in_use.items():
-                    if device_name not in response_list:
-                        tab.transition_to_manual(self.current_queue)               
-                        while True:
-                            # TODO: make the call to current_queue.get() timeout 
-                            # and periodically check for error condition on the tab
-                            got_device_name, result = self.current_queue.get()
-                            # if the response is not for this device, then save it for later!
-                            if device_name != got_device_name:
-                                response_list[got_device_name] = result
-                            else:
-                                break
-                    else:
-                        result = response_list[device_name]
-                    # Check for abort signal from device restart
-                    if result == 'fail':
-                        error_condition = True
-                    if result == 'restart':
-                        error_condition = True
-                    if self.get_device_error_state(device_name,devices_in_use):
-                        error_condition = True
-                    # Once device has transitioned_to_manual, disconnect restart signal
-                    inmain(tab.disconnect_restart_receiver,restart_function)
+                transition_list = devices_in_use.copy()
+
+                while transition_list and not error_condition:
+                    try:
+                        # Wait for a device to transition_to_manual:
+                        logger.debug('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
+                        device_name, result = self.current_queue.get(timeout=2)
+                        if (device_name == 'Queue Manager' and result == 'abort'):
+                            # Ignore any abort signals left in the queue, it
+                            # is too late to abort in any case
+                            continue
+                        logger.debug('%s finished transitioning to manual mode' % device_name)
+                        
+                        if result == 'fail':
+                            error_condition = True
+                        if result == 'restart':
+                            error_condition = True
+                        if self.get_device_error_state(device_name, transition_list):
+                            error_condition = True
+
+                        del transition_list[device_name]
+                        # disconnect restart signal from tab 
+                        inmain(tab.disconnect_restart_receiver,restart_function)
+                    except queue.Empty:
+                        # It's been 2 seconds without a device finishing
+                        # transitioning to manual. Is there an error?
+                        for name in transition_list:
+                            if self.get_device_error_state(name,transition_list):
+                                error_condition = True
+                                
+                    if error_condition:
+                        break
                     
                 if error_condition:                
                     self.set_status("Error during transtion to manual. Queue Paused.")
@@ -836,7 +840,6 @@ class QueueManager(object):
                 
                 # Need to put devices back in manual mode. Since the experiment is over before this try/except block begins, we can 
                 # safely call transition_to_manual() on each device tab
-                # TODO: Not serialised...could be bad with older BIAS versions :(
                 self.current_queue = Queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED:
